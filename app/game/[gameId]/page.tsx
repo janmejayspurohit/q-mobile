@@ -21,7 +21,16 @@ export default function GameRoom() {
   const gameCode = searchParams.get('code') || '';
 
   // Use gameId + gameCode as key to force remount when changing games
-  return <GameRoomContent key={`${gameId}-${gameCode}`} gameId={gameId} gameCode={gameCode} socket={socket} isConnected={isConnected} router={router} />;
+  return (
+    <GameRoomContent
+      key={`${gameId}-${gameCode}`}
+      gameId={gameId}
+      gameCode={gameCode}
+      socket={socket}
+      isConnected={isConnected}
+      router={router}
+    />
+  );
 }
 
 interface GameRoomContentProps {
@@ -33,7 +42,6 @@ interface GameRoomContentProps {
 }
 
 function GameRoomContent({ gameId, gameCode, socket, isConnected, router }: GameRoomContentProps) {
-
   const [gameState, setGameState] = useState<'waiting' | 'playing' | 'ended'>('waiting');
   const [players, setPlayers] = useState<Player[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<IQuestion | null>(null);
@@ -49,14 +57,14 @@ function GameRoomContent({ gameId, gameCode, socket, isConnected, router }: Game
   } | null>(null);
   const [leaderboard, setLeaderboard] = useState<Player[]>([]);
   const [gameTitle, setGameTitle] = useState('');
-  
+
   // Use ref to track if we've already emitted join-game (prevents double-join in React Strict Mode)
   const hasEmittedJoinRef = useRef(false);
 
   useEffect(() => {
     console.log(`🔄 CLIENT: useEffect triggered for game ${gameId}, code ${gameCode}`);
     console.log(`   Socket: ${socket?.id}, Connected: ${isConnected}`);
-    
+
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
 
@@ -201,7 +209,7 @@ function GameRoomContent({ gameId, gameCode, socket, isConnected, router }: Game
         if (hasEmittedJoinRef.current) {
           console.log(`🔄 CLIENT: Rejoining game after reconnection...`);
           hasEmittedJoinRef.current = false; // Reset so we can join again
-          
+
           socket.emit('join-game', {
             gameCode,
             username: user.username,
@@ -229,7 +237,7 @@ function GameRoomContent({ gameId, gameCode, socket, isConnected, router }: Game
           hasEmittedJoinRef.current = true;
         } else {
           console.log(`⏳ CLIENT: Socket not yet connected, waiting for 'connect' event...`);
-          
+
           // Set up a one-time connect listener to join when socket connects
           const handleConnect = () => {
             if (!hasEmittedJoinRef.current) {
@@ -237,7 +245,7 @@ function GameRoomContent({ gameId, gameCode, socket, isConnected, router }: Game
               console.log(
                 `   Payload: { gameCode: "${gameCode}", username: "${user.username}", userId: "${user.id || user._id}" }`
               );
-              
+
               socket.emit('join-game', {
                 gameCode,
                 username: user.username,
@@ -246,7 +254,7 @@ function GameRoomContent({ gameId, gameCode, socket, isConnected, router }: Game
               hasEmittedJoinRef.current = true;
             }
           };
-          
+
           socket.once('connect', handleConnect);
         }
       } else {
@@ -269,7 +277,7 @@ function GameRoomContent({ gameId, gameCode, socket, isConnected, router }: Game
         socket.off('game-completed');
         socket.off('error');
         socket.off('connect');
-        
+
         // Also leave the game room if moving to a different game
         console.log(`🔌 CLIENT: Leaving game room ${gameId}`);
         socket.emit('leave-game', { gameId });

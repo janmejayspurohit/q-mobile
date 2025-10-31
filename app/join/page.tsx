@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { disconnectSocket } from '@/hooks/useSocket';
 
 export default function JoinPage() {
   const [gameCode, setGameCode] = useState('');
@@ -96,6 +97,10 @@ export default function JoinPage() {
   };
 
   const handleLogout = () => {
+    // Disconnect socket connection before logout
+    disconnectSocket();
+    console.log('🔌 Player socket disconnected on logout');
+
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     router.push('/');

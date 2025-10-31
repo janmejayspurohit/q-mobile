@@ -8,7 +8,7 @@ export async function GET() {
     await connectDB();
 
     const ongoingGames = await Game.find({
-      status: { $in: ['waiting', 'active'] }
+      status: { $in: ['waiting', 'active'] },
     })
       .populate('questions', 'questionText')
       .sort({ createdAt: -1 })

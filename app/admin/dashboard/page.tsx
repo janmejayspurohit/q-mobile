@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { disconnectSocket } from '@/hooks/useSocket';
 
 interface Question {
   _id: string;
@@ -294,7 +295,9 @@ export default function AdminDashboard() {
     if (errors.length > 0) {
       setValidationResult({
         valid: false,
-        message: errors[0].includes('parse') ? '❌ Invalid JSON syntax' : `❌ Validation failed with ${errors.length} error(s)`,
+        message: errors[0].includes('parse')
+          ? '❌ Invalid JSON syntax'
+          : `❌ Validation failed with ${errors.length} error(s)`,
         details: errors,
       });
       return;
@@ -307,7 +310,6 @@ export default function AdminDashboard() {
       let errorCount = 0;
 
       for (const item of questionsArray) {
-
         // Find the correct answer (the option before "true")
         let correctAnswerValue = '';
         const cleanOptions: string[] = [];
@@ -427,6 +429,10 @@ export default function AdminDashboard() {
   };
 
   const handleLogout = () => {
+    // Disconnect socket connection before logout
+    disconnectSocket();
+    console.log('🔌 Admin socket disconnected on logout');
+
     localStorage.removeItem('adminToken');
     localStorage.removeItem('admin');
     router.push('/admin/login');
@@ -510,7 +516,6 @@ export default function AdminDashboard() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-
         {/* Bulk Import Form */}
         {showBulkImport && (
           <div className="bg-gray-900 border border-gray-800 rounded-xl shadow-lg p-6 mb-8">
@@ -710,7 +715,6 @@ export default function AdminDashboard() {
                     min="0"
                   />
                 </div>
-
               </div>
 
               <div className="flex gap-4">
@@ -795,7 +799,10 @@ export default function AdminDashboard() {
                 </div>
                 <div className="max-h-64 overflow-y-auto bg-gray-800 border border-gray-700 rounded-lg p-4 space-y-2">
                   {questions.map((q) => (
-                    <label key={q._id} className="flex items-start gap-3 cursor-pointer hover:bg-gray-700/50 p-2 rounded transition">
+                    <label
+                      key={q._id}
+                      className="flex items-start gap-3 cursor-pointer hover:bg-gray-700/50 p-2 rounded transition"
+                    >
                       <input
                         type="checkbox"
                         checked={selectedQuestions.includes(q._id)}

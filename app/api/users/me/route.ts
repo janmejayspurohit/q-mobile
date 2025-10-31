@@ -10,10 +10,7 @@ export async function GET(request: NextRequest) {
     // Get token from authorization header
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const token = authHeader.split(' ')[1];
@@ -23,12 +20,9 @@ export async function GET(request: NextRequest) {
 
     // Fetch user from database
     const user = await User.findById(decoded.userId).select('-password');
-    
+
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -39,9 +33,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error fetching user:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch user data' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch user data' }, { status: 500 });
   }
 }

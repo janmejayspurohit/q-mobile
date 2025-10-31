@@ -13,19 +13,19 @@ export async function GET() {
     // Count wrong answers per question
     const wrongAnswerCounts = new Map<string, { count: number; questionId: string }>();
 
-    games.forEach(game => {
-      game.players.forEach(player => {
-        player.answers.forEach(answer => {
+    games.forEach((game) => {
+      game.players.forEach((player) => {
+        player.answers.forEach((answer) => {
           if (!answer.isCorrect) {
             const qId = answer.questionId.toString();
             const existing = wrongAnswerCounts.get(qId);
-            
+
             if (existing) {
               existing.count += 1;
             } else {
               wrongAnswerCounts.set(qId, {
                 questionId: qId,
-                count: 1
+                count: 1,
               });
             }
           }
@@ -39,20 +39,21 @@ export async function GET() {
       .slice(0, 5);
 
     // Fetch question details
-    const questionIds = topWrongQuestions.map(q => q.questionId);
-    const questions = await Question.find({ _id: { $in: questionIds } })
-      .select('questionText category difficulty correctAnswer');
+    const questionIds = topWrongQuestions.map((q) => q.questionId);
+    const questions = await Question.find({ _id: { $in: questionIds } }).select(
+      'questionText category difficulty correctAnswer'
+    );
 
     // Combine data
-    const result = topWrongQuestions.map(wq => {
-      const question = questions.find(q => q._id.toString() === wq.questionId);
+    const result = topWrongQuestions.map((wq) => {
+      const question = questions.find((q) => q._id.toString() === wq.questionId);
       return {
         questionId: wq.questionId,
         questionText: question?.questionText || 'Unknown',
         category: question?.category || 'Unknown',
         difficulty: question?.difficulty || 'medium',
         correctAnswer: question?.correctAnswer || 'Unknown',
-        wrongCount: wq.count
+        wrongCount: wq.count,
       };
     });
 

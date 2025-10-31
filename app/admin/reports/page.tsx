@@ -15,15 +15,7 @@ import {
 } from 'chart.js';
 
 // Register ChartJS components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend
-);
+ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
 interface OngoingGame {
   _id: string;
@@ -92,7 +84,7 @@ export default function ReportsPage() {
   const fetchAllData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch all data in parallel
       const [ongoingRes, topUsersRes, allGamesRes, wrongQuestionsRes] = await Promise.all([
         fetch('/api/stats/ongoing-games'),
@@ -129,9 +121,9 @@ export default function ReportsPage() {
   };
 
   const handleGameSelection = (gameId: string) => {
-    setSelectedGames(prev => {
+    setSelectedGames((prev) => {
       if (prev.includes(gameId)) {
-        return prev.filter(id => id !== gameId);
+        return prev.filter((id) => id !== gameId);
       }
       return [...prev, gameId];
     });
@@ -165,16 +157,16 @@ export default function ReportsPage() {
 
   // Chart data for top users
   const topUsersChartData = {
-    labels: topUsers.map(u => u.username),
+    labels: topUsers.map((u) => u.username),
     datasets: [
       {
         label: 'Total Wins',
-        data: topUsers.map(u => u.totalWins),
+        data: topUsers.map((u) => u.totalWins),
         backgroundColor: 'rgba(59, 130, 246, 0.8)',
       },
       {
         label: 'Games Played',
-        data: topUsers.map(u => u.totalGamesPlayed),
+        data: topUsers.map((u) => u.totalGamesPlayed),
         backgroundColor: 'rgba(16, 185, 129, 0.8)',
       },
     ],
@@ -182,11 +174,11 @@ export default function ReportsPage() {
 
   // Chart data for custom leaderboard
   const customLeaderboardChartData = {
-    labels: customLeaderboard.map(p => p.username),
+    labels: customLeaderboard.map((p) => p.username),
     datasets: [
       {
         label: 'Total Score',
-        data: customLeaderboard.map(p => p.totalScore),
+        data: customLeaderboard.map((p) => p.totalScore),
         backgroundColor: 'rgba(139, 92, 246, 0.8)',
       },
     ],
@@ -194,11 +186,11 @@ export default function ReportsPage() {
 
   // Chart data for wrong questions (pie chart)
   const wrongQuestionsChartData = {
-    labels: wrongQuestions.map(q => q.questionText.substring(0, 30) + '...'),
+    labels: wrongQuestions.map((q) => q.questionText.substring(0, 30) + '...'),
     datasets: [
       {
         label: 'Wrong Answers',
-        data: wrongQuestions.map(q => q.wrongCount),
+        data: wrongQuestions.map((q) => q.wrongCount),
         backgroundColor: [
           'rgba(239, 68, 68, 0.8)',
           'rgba(249, 115, 22, 0.8)',
@@ -245,12 +237,12 @@ export default function ReportsPage() {
       },
       tooltip: {
         callbacks: {
-          label: function(context: { dataIndex: number; parsed: number }) {
+          label: function (context: { dataIndex: number; parsed: number }) {
             const label = wrongQuestions[context.dataIndex]?.questionText || '';
             return `${label}: ${context.parsed} wrong answers`;
-          }
-        }
-      }
+          },
+        },
+      },
     },
   };
 
@@ -278,7 +270,6 @@ export default function ReportsPage() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-
         {error && (
           <div className="bg-red-900/20 border border-red-700 text-red-300 px-4 py-3 rounded-lg mb-6">
             {error}
@@ -292,14 +283,18 @@ export default function ReportsPage() {
             <p className="text-gray-400">No ongoing games at the moment.</p>
           ) : (
             <div className="space-y-4">
-              {ongoingGames.map(game => (
+              {ongoingGames.map((game) => (
                 <div key={game._id} className="bg-gray-800 border border-gray-700 rounded-lg p-4">
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <h3 className="text-xl font-semibold text-white">{game.title}</h3>
-                      <p className="text-gray-300">Code: <span className="font-mono font-bold text-blue-400">{game.gameCode}</span></p>
+                      <p className="text-gray-300">
+                        Code:{' '}
+                        <span className="font-mono font-bold text-blue-400">{game.gameCode}</span>
+                      </p>
                       <p className="text-gray-400 text-sm">
-                        Status: <span className="capitalize font-medium text-green-400">{game.status}</span>
+                        Status:{' '}
+                        <span className="capitalize font-medium text-green-400">{game.status}</span>
                       </p>
                     </div>
                     <div className="text-right">
@@ -309,15 +304,20 @@ export default function ReportsPage() {
                       <p className="text-gray-400">{game.players.length} players</p>
                     </div>
                   </div>
-                  
+
                   {game.players.length > 0 && (
                     <div className="mt-4">
-                      <h4 className="text-sm font-semibold text-gray-400 mb-2">Current Standings:</h4>
+                      <h4 className="text-sm font-semibold text-gray-400 mb-2">
+                        Current Standings:
+                      </h4>
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                         {game.players
                           .sort((a, b) => b.score - a.score)
                           .map((player, idx) => (
-                            <div key={idx} className="bg-gray-700 border border-gray-600 rounded px-3 py-2">
+                            <div
+                              key={idx}
+                              className="bg-gray-700 border border-gray-600 rounded px-3 py-2"
+                            >
                               <p className="text-white text-sm font-medium">{player.username}</p>
                               <p className="text-green-400 text-xs">{player.score} pts</p>
                             </div>
@@ -346,11 +346,11 @@ export default function ReportsPage() {
         {/* Custom Game Selection and Leaderboard */}
         <div className="bg-gray-900 border border-gray-800 rounded-xl shadow-lg p-6 mb-8">
           <h2 className="text-2xl font-bold text-white mb-4">📊 Custom Games Analysis</h2>
-          
+
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-white mb-3">Select Games to Analyze:</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto p-2">
-              {allGames.map(game => (
+              {allGames.map((game) => (
                 <label
                   key={game._id}
                   className="flex items-center space-x-3 bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:bg-gray-700 transition"
@@ -363,7 +363,9 @@ export default function ReportsPage() {
                   />
                   <div className="flex-1">
                     <p className="text-white font-medium">{game.title}</p>
-                    <p className="text-gray-400 text-sm">Code: <span className="font-mono text-blue-400">{game.gameCode}</span></p>
+                    <p className="text-gray-400 text-sm">
+                      Code: <span className="font-mono text-blue-400">{game.gameCode}</span>
+                    </p>
                     <p className="text-gray-500 text-xs">
                       {new Date(game.endedAt).toLocaleDateString()}
                     </p>
@@ -388,11 +390,14 @@ export default function ReportsPage() {
                   <p className="text-gray-400">Loading leaderboard...</p>
                 )}
               </div>
-              
+
               {customLeaderboard.length > 0 && (
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
                   {customLeaderboard.map((player, idx) => (
-                    <div key={player.userId} className="bg-gray-800 border border-gray-700 rounded-lg p-4 text-center">
+                    <div
+                      key={player.userId}
+                      className="bg-gray-800 border border-gray-700 rounded-lg p-4 text-center"
+                    >
                       <div className="text-3xl mb-2">
                         {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🏅'}
                       </div>
@@ -409,7 +414,9 @@ export default function ReportsPage() {
 
         {/* Top 5 Most Wrong Questions (Pie Chart) */}
         <div className="bg-gray-900 border border-gray-800 rounded-xl shadow-lg p-6 mb-8">
-          <h2 className="text-2xl font-bold text-white mb-4">❌ Top 5 Most Wrongly Answered Questions</h2>
+          <h2 className="text-2xl font-bold text-white mb-4">
+            ❌ Top 5 Most Wrongly Answered Questions
+          </h2>
           <div className="flex flex-col lg:flex-row gap-6">
             <div className="flex-1" style={{ height: '400px' }}>
               {wrongQuestions.length > 0 ? (
@@ -418,12 +425,15 @@ export default function ReportsPage() {
                 <p className="text-gray-400">No data available for wrong answers yet.</p>
               )}
             </div>
-            
+
             {wrongQuestions.length > 0 && (
               <div className="flex-1 space-y-3">
                 <h3 className="text-lg font-semibold text-white mb-3">Question Details:</h3>
                 {wrongQuestions.map((q, idx) => (
-                  <div key={q.questionId} className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+                  <div
+                    key={q.questionId}
+                    className="bg-gray-800 border border-gray-700 rounded-lg p-4"
+                  >
                     <div className="flex items-start gap-3">
                       <div className="text-2xl">{idx + 1}.</div>
                       <div className="flex-1">
@@ -433,7 +443,8 @@ export default function ReportsPage() {
                             Category: <span className="text-blue-400">{q.category}</span>
                           </span>
                           <span className="text-gray-400">
-                            Difficulty: <span className="text-yellow-400 capitalize">{q.difficulty}</span>
+                            Difficulty:{' '}
+                            <span className="text-yellow-400 capitalize">{q.difficulty}</span>
                           </span>
                         </div>
                         <div className="bg-green-900/30 border border-green-700 rounded px-3 py-2 mb-2">
@@ -441,9 +452,7 @@ export default function ReportsPage() {
                             <span className="font-semibold">Correct Answer:</span> {q.correctAnswer}
                           </p>
                         </div>
-                        <p className="text-red-400 font-semibold">
-                          {q.wrongCount} wrong answers
-                        </p>
+                        <p className="text-red-400 font-semibold">{q.wrongCount} wrong answers</p>
                       </div>
                     </div>
                   </div>

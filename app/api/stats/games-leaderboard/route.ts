@@ -15,17 +15,20 @@ export async function POST(request: NextRequest) {
 
     const games = await Game.find({
       _id: { $in: gameIds },
-      status: 'completed'
+      status: 'completed',
     }).populate('players.userId', 'username');
 
     // Aggregate scores across selected games
-    const playerScores = new Map<string, { userId: string; username: string; totalScore: number; gamesPlayed: number }>();
+    const playerScores = new Map<
+      string,
+      { userId: string; username: string; totalScore: number; gamesPlayed: number }
+    >();
 
-    games.forEach(game => {
-      game.players.forEach(player => {
+    games.forEach((game) => {
+      game.players.forEach((player) => {
         const userId = player.userId.toString();
         const existing = playerScores.get(userId);
-        
+
         if (existing) {
           existing.totalScore += player.score;
           existing.gamesPlayed += 1;
@@ -34,7 +37,7 @@ export async function POST(request: NextRequest) {
             userId,
             username: player.username,
             totalScore: player.score,
-            gamesPlayed: 1
+            gamesPlayed: 1,
           });
         }
       });

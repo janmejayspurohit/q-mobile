@@ -66,7 +66,7 @@ app.prepare().then(() => {
 
         if (game.status === 'completed') {
           console.log(`❌ Game has ended: "${game.status}"`);
-          socket.emit('game-completed', { gameId: game._id.toString() });
+          socket.emit('error', { message: 'This game has already ended. Please join a new game.' });
           return;
         }
 
@@ -149,6 +149,12 @@ app.prepare().then(() => {
           return;
         }
 
+        // Prevent double start - check if already started
+        if (game.status !== 'waiting') {
+          console.log(`⚠️ Game ${game.gameCode} already started, ignoring duplicate start request`);
+          return;
+        }
+
         if (game.players.length === 0) {
           socket.emit('error', { message: 'No players in the game' });
           return;
@@ -204,16 +210,11 @@ app.prepare().then(() => {
 
           if (timeRemaining <= 0) {
             clearInterval(timerInterval);
-            // Remove timer from activeGames
-            activeGames.delete(`${gameCode}-timer`);
             setTimeout(() => {
               moveToNextQuestion(gameCode, gameId);
             }, 3000);
           }
         }, 1000);
-
-        // Store timer interval for cleanup
-        activeGames.set(`${gameCode}-timer`, timerInterval);
 
         console.log(`📝 Question ${game.currentQuestionIndex + 1} sent to ${gameCode}`);
       } catch (error) {
@@ -342,17 +343,19 @@ app.prepare().then(() => {
 
     async function endGame(gameCode: string, gameId: string) {
       try {
-        // Clear any active timer for this game
-        const activeTimer = activeGames.get(`${gameCode}-timer`);
-        if (activeTimer) {
-          clearInterval(activeTimer);
-          activeGames.delete(`${gameCode}-timer`);
-          console.log(`⏹️ Cleared active timer for game ${gameCode}`);
-        }
-
         const game = await Game.findById(gameId);
 
         if (!game) return;
+
+        // Clean up all activeGames entries for this game
+        const activeTimer = activeGames.get(`${gameCode}-timer`);
+        if (activeTimer) {
+          clearInterval(activeTimer);
+        }
+        activeGames.delete(`${gameCode}-timer`);
+        activeGames.delete(`${gameCode}-questionStart`);
+        activeGames.delete(gameCode);
+        console.log(`🧹 Cleaned up all activeGames entries for ${gameCode}`);
 
         game.status = 'completed';
         game.endedAt = new Date();
@@ -407,6 +410,39 @@ app.prepare().then(() => {
 
     socket.on('disconnect', () => {
       console.log('🔌 Client disconnected:', socket.id);
+
+      // Clean up: remove player from game room and update game state
+      const { gameCode, userId, username } = socket.data;
+
+      if (gameCode && userId) {
+        // Leave the socket room
+        socket.leave(gameCode);
+        console.log(`👋 ${username || 'User'} (${userId}) left room: ${gameCode}`);
+
+        // Optionally: Remove player from game if in waiting status
+        // (Only remove if game hasn't started yet to avoid disrupting active games)
+        Game.findOne({ gameCode })
+          .then((game) => {
+            if (game && game.status === 'waiting') {
+              const playerIndex = game.players.findIndex((p) => p.userId.toString() === userId);
+              if (playerIndex !== -1) {
+                game.players.splice(playerIndex, 1);
+                game.save().then(() => {
+                  console.log(`🗑️ Removed ${username} from waiting game ${gameCode}`);
+                  // Notify other players
+                  io.to(gameCode).emit('player-left', {
+                    username,
+                    totalPlayers: game.players.length,
+                    players: game.players.map((p) => ({ username: p.username, score: p.score })),
+                  });
+                });
+              }
+            }
+          })
+          .catch((error) => {
+            console.error('Error cleaning up disconnected player:', error);
+          });
+      }
     });
   });
 

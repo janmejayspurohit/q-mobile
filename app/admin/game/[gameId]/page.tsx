@@ -68,7 +68,7 @@ export default function AdminGameControl() {
         console.error('❌ ADMIN: Error refreshing players:', error);
       }
     };
-    
+
     // Refresh players shortly after joining the room
     const refreshTimer = setTimeout(refreshPlayers, 500);
 
