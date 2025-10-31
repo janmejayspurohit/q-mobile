@@ -93,7 +93,7 @@ const GAME_CODE_WORDS = [
   'HTML',
   'JSON',
   'AJAX',
-];
+] as const;
 
 // Generate unique game code with concurrent-safe approach
 const generateGameCode = async (): Promise<string> => {

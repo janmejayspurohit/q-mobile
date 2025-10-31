@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -13,6 +13,19 @@ export default function Home() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  // Redirect to join page if already logged in
+  useEffect(() => {
+    const adminToken = localStorage.getItem('adminToken');
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+
+    if (adminToken) {
+      router.push('/admin/dashboard');
+    } else if (token && user) {
+      router.push('/join');
+    }
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
