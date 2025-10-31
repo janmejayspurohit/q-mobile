@@ -36,8 +36,14 @@ export default function ResultsPage() {
   const [topUsers, setTopUsers] = useState<TopUser[]>([]);
   const [gameTitle, setGameTitle] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
+    // Check if user is admin
+    const adminToken = localStorage.getItem('adminToken');
+    const adminData = localStorage.getItem('admin');
+    setIsAdmin(!!(adminToken && adminData));
+
     fetchGameResults();
     fetchTopUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -238,18 +244,31 @@ export default function ResultsPage() {
 
         {/* Action Buttons */}
         <div className="flex gap-4 justify-center">
-          <button
-            onClick={handlePlayAgain}
-            className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold text-lg rounded-xl hover:from-purple-700 hover:to-pink-600 transition-all transform hover:scale-105 shadow-lg"
-          >
-            🎮 Play Again
-          </button>
-          <button
-            onClick={() => router.push('/')}
-            className="px-8 py-4 bg-gray-800 border border-gray-700 text-purple-400 font-bold text-lg rounded-xl hover:bg-gray-700 transition-all transform hover:scale-105 shadow-lg"
-          >
-            🏠 Home
-          </button>
+          {isAdmin ? (
+            // Admin buttons - only show Return to Dashboard
+            <button
+              onClick={() => router.push('/admin/dashboard')}
+              className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-lg rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all transform hover:scale-105 shadow-lg"
+            >
+              📊 Return to Dashboard
+            </button>
+          ) : (
+            // Player buttons - show Play Again and Home
+            <>
+              <button
+                onClick={handlePlayAgain}
+                className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold text-lg rounded-xl hover:from-purple-700 hover:to-pink-600 transition-all transform hover:scale-105 shadow-lg"
+              >
+                🎮 Play Again
+              </button>
+              <button
+                onClick={() => router.push('/')}
+                className="px-8 py-4 bg-gray-800 border border-gray-700 text-purple-400 font-bold text-lg rounded-xl hover:bg-gray-700 transition-all transform hover:scale-105 shadow-lg"
+              >
+                🏠 Home
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

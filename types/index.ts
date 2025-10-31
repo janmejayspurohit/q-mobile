@@ -25,7 +25,6 @@ export interface IQuestion {
   category?: string;
   difficulty: 'easy' | 'medium' | 'hard';
   points: number;
-  timeLimit: number;
   createdBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;

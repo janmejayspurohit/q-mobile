@@ -52,7 +52,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     const body = await request.json();
-    const { questionText, options, correctAnswer, category, difficulty, points, timeLimit } = body;
+    const { questionText, options, correctAnswer, category, difficulty, points } = body;
 
     const { id } = await params;
     const question = await Question.findByIdAndUpdate(
@@ -64,7 +64,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         category,
         difficulty,
         points,
-        timeLimit,
       },
       { new: true, runValidators: true }
     );

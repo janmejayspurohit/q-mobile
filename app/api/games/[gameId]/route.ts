@@ -30,7 +30,6 @@ export async function GET(
       const sanitizedQuestions = (game.questions as unknown as IQuestion[]).map((q) => ({
         _id: q._id,
         questionText: q.questionText,
-        timeLimit: q.timeLimit,
         points: q.points,
       }));
 

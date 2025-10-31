@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useSocket } from '@/hooks/useSocket';
 import { IQuestion } from '@/types';
@@ -20,6 +20,20 @@ export default function GameRoom() {
   const gameId = params.gameId as string;
   const gameCode = searchParams.get('code') || '';
 
+  // Use gameId + gameCode as key to force remount when changing games
+  return <GameRoomContent key={`${gameId}-${gameCode}`} gameId={gameId} gameCode={gameCode} socket={socket} isConnected={isConnected} router={router} />;
+}
+
+interface GameRoomContentProps {
+  gameId: string;
+  gameCode: string;
+  socket: ReturnType<typeof useSocket>['socket'];
+  isConnected: boolean;
+  router: ReturnType<typeof useRouter>;
+}
+
+function GameRoomContent({ gameId, gameCode, socket, isConnected, router }: GameRoomContentProps) {
+
   const [gameState, setGameState] = useState<'waiting' | 'playing' | 'ended'>('waiting');
   const [players, setPlayers] = useState<Player[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<IQuestion | null>(null);
@@ -35,12 +49,19 @@ export default function GameRoom() {
   } | null>(null);
   const [leaderboard, setLeaderboard] = useState<Player[]>([]);
   const [gameTitle, setGameTitle] = useState('');
+  
+  // Use ref to track if we've already emitted join-game (prevents double-join in React Strict Mode)
+  const hasEmittedJoinRef = useRef(false);
 
   useEffect(() => {
+    console.log(`🔄 CLIENT: useEffect triggered for game ${gameId}, code ${gameCode}`);
+    console.log(`   Socket: ${socket?.id}, Connected: ${isConnected}`);
+    
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
 
     if (!token || !userData) {
+      console.log(`❌ CLIENT: No token or user data, redirecting to home`);
       router.push('/');
       return;
     }
@@ -61,15 +82,9 @@ export default function GameRoom() {
           setGameTitle(data.game.title);
           setTotalQuestions(data.game.questions?.length || 0);
 
-          // Initialize players list from game data
-          if (data.game.players && data.game.players.length > 0) {
-            setPlayers(
-              data.game.players.map((p: { username: string; score: number }) => ({
-                username: p.username,
-                score: p.score,
-              }))
-            );
-          }
+          // Don't initialize players from API - let it come from socket 'player-joined' event
+          // This ensures we always have the most up-to-date player list
+          console.log(`ℹ️  CLIENT: Waiting for socket 'player-joined' event for player list...`);
 
           // If game is completed, redirect to results page
           if (data.game.status === 'completed') {
@@ -85,20 +100,24 @@ export default function GameRoom() {
         }
       });
 
-    if (socket && isConnected) {
-      console.log(`🔌 CLIENT: Socket connected, emitting join-game...`);
-      console.log(
-        `   Payload: { gameCode: "${gameCode}", username: "${user.username}", userId: "${user.id}" }`
-      );
+    // Set up socket listeners and join game
+    // Do this even if isConnected is false, as the socket might connect shortly
+    if (socket) {
+      console.log(`🔌 CLIENT: Socket exists (ID: ${socket.id}), setting up listeners...`);
 
-      // Join the game
-      socket.emit('join-game', {
-        gameCode,
-        username: user.username,
-        userId: user.id,
-      });
+      // Remove any existing listeners first to avoid duplicates
+      socket.off('player-joined');
+      socket.off('game-started');
+      socket.off('question-display');
+      socket.off('timer-update');
+      socket.off('answer-result');
+      socket.off('leaderboard-update');
+      socket.off('game-ended');
+      socket.off('game-completed');
+      socket.off('error');
+      socket.off('connect');
 
-      // Listen for events
+      // Set up ALL event listeners FIRST before joining
       socket.on(
         'player-joined',
         (data: { username: string; totalPlayers: number; players: Player[] }) => {
@@ -168,13 +187,78 @@ export default function GameRoom() {
           }, 2000);
         }
       });
+
+      // Handle game-completed event - redirect to results
+      socket.on('game-completed', (data: { gameId: string }) => {
+        console.log(`🏁 CLIENT: Game has already ended, redirecting to results...`);
+        router.push(`/results/${data.gameId}`);
+      });
+
+      // Handle socket reconnection - reset ref and rejoin game
+      socket.on('connect', () => {
+        console.log(`🔄 CLIENT: Socket reconnected (ID: ${socket.id})`);
+        // If we were already in this game and socket reconnects, reset the ref and rejoin
+        if (hasEmittedJoinRef.current) {
+          console.log(`🔄 CLIENT: Rejoining game after reconnection...`);
+          hasEmittedJoinRef.current = false; // Reset so we can join again
+          
+          socket.emit('join-game', {
+            gameCode,
+            username: user.username,
+            userId: user.id || user._id,
+          });
+          hasEmittedJoinRef.current = true;
+        }
+      });
+
+      // NOW emit join-game AFTER all listeners are set up
+      // Join immediately if already connected, or wait for connection
+      // Use hasEmittedJoinRef to prevent double-joining from React Strict Mode
+      if (!hasEmittedJoinRef.current) {
+        if (socket.connected) {
+          console.log(`🔌 CLIENT: Socket already connected, emitting join-game immediately...`);
+          console.log(
+            `   Payload: { gameCode: "${gameCode}", username: "${user.username}", userId: "${user.id || user._id}" }`
+          );
+
+          socket.emit('join-game', {
+            gameCode,
+            username: user.username,
+            userId: user.id || user._id,
+          });
+          hasEmittedJoinRef.current = true;
+        } else {
+          console.log(`⏳ CLIENT: Socket not yet connected, waiting for 'connect' event...`);
+          
+          // Set up a one-time connect listener to join when socket connects
+          const handleConnect = () => {
+            if (!hasEmittedJoinRef.current) {
+              console.log(`🔌 CLIENT: Socket connected! Now emitting join-game...`);
+              console.log(
+                `   Payload: { gameCode: "${gameCode}", username: "${user.username}", userId: "${user.id || user._id}" }`
+              );
+              
+              socket.emit('join-game', {
+                gameCode,
+                username: user.username,
+                userId: user.id || user._id,
+              });
+              hasEmittedJoinRef.current = true;
+            }
+          };
+          
+          socket.once('connect', handleConnect);
+        }
+      } else {
+        console.log(`⏭️  CLIENT: Already emitted join-game, skipping duplicate`);
+      }
     } else {
-      console.log(`⏳ CLIENT: Socket not ready (connected: ${isConnected})`);
+      console.log(`❌ CLIENT: Socket not available!`);
     }
 
     return () => {
       if (socket) {
-        console.log(`🔌 CLIENT: Cleaning up socket listeners`);
+        console.log(`🔌 CLIENT: Cleaning up socket listeners for game ${gameId}`);
         socket.off('player-joined');
         socket.off('game-started');
         socket.off('question-display');
@@ -182,7 +266,13 @@ export default function GameRoom() {
         socket.off('answer-result');
         socket.off('leaderboard-update');
         socket.off('game-ended');
+        socket.off('game-completed');
         socket.off('error');
+        socket.off('connect');
+        
+        // Also leave the game room if moving to a different game
+        console.log(`🔌 CLIENT: Leaving game room ${gameId}`);
+        socket.emit('leave-game', { gameId });
       }
     };
   }, [socket, isConnected, gameId, gameCode, router]);

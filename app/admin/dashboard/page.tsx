@@ -11,7 +11,6 @@ interface Question {
   category?: string;
   difficulty: 'easy' | 'medium' | 'hard';
   points: number;
-  timeLimit: number;
 }
 
 interface Game {
@@ -54,8 +53,9 @@ export default function AdminDashboard() {
   const [correctAnswer, setCorrectAnswer] = useState('');
   const [category, setCategory] = useState('General');
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-  const [points, setPoints] = useState(100);
-  const [timeLimit, setTimeLimit] = useState(15);
+  const [points, setPoints] = useState(
+    parseInt(process.env.NEXT_PUBLIC_QUESTION_POINTS || '1000', 10)
+  );
 
   // Game form state
   const [gameTitle, setGameTitle] = useState('');
@@ -119,7 +119,6 @@ export default function AdminDashboard() {
           category,
           difficulty,
           points,
-          timeLimit,
         }),
       });
 
@@ -197,7 +196,6 @@ export default function AdminDashboard() {
     setCategory(question.category || 'General');
     setDifficulty(question.difficulty);
     setPoints(question.points);
-    setTimeLimit(question.timeLimit);
     setShowQuestionForm(true);
   };
 
@@ -211,23 +209,17 @@ export default function AdminDashboard() {
     setCorrectAnswer('');
     setCategory('General');
     setDifficulty('medium');
-    setPoints(100);
-    setTimeLimit(15);
+    setPoints(parseInt(process.env.NEXT_PUBLIC_QUESTION_POINTS || '100', 10));
     setShowQuestionForm(false);
   };
 
-  const handleValidateJson = () => {
-    if (!bulkJson.trim()) {
-      setValidationResult({ valid: false, message: 'Please enter JSON data' });
-      return;
-    }
+  const validateJson = () => {
+    const errors: string[] = [];
+    const warnings: string[] = [];
 
     try {
       const data = JSON.parse(bulkJson);
       const questionsArray = Array.isArray(data) ? data : [data];
-
-      const errors: string[] = [];
-      const warnings: string[] = [];
 
       questionsArray.forEach((item, index) => {
         const itemNum = index + 1;
@@ -280,49 +272,41 @@ export default function AdminDashboard() {
         }
       });
 
-      if (errors.length === 0) {
-        setValidationResult({
-          valid: true,
-          message: `✅ Validation passed! Found ${questionsArray.length} valid question(s)`,
-          details: warnings.length > 0 ? warnings : undefined,
-        });
-      } else {
-        setValidationResult({
-          valid: false,
-          message: `❌ Validation failed with ${errors.length} error(s)`,
-          details: errors,
-        });
-      }
+      return { errors, warnings, questionsArray };
     } catch (error) {
-      setValidationResult({
-        valid: false,
-        message: '❌ Invalid JSON syntax',
-        details: [error instanceof Error ? error.message : 'Unable to parse JSON'],
-      });
+      return {
+        errors: [error instanceof Error ? error.message : 'Unable to parse JSON'],
+        warnings: [],
+        questionsArray: [],
+      };
     }
   };
 
   const handleBulkImport = async () => {
     if (!bulkJson.trim()) {
-      alert('Please enter JSON data');
+      setValidationResult({ valid: false, message: 'Please enter JSON data' });
+      return;
+    }
+
+    // Validate JSON first
+    const { errors, questionsArray } = validateJson();
+
+    if (errors.length > 0) {
+      setValidationResult({
+        valid: false,
+        message: errors[0].includes('parse') ? '❌ Invalid JSON syntax' : `❌ Validation failed with ${errors.length} error(s)`,
+        details: errors,
+      });
       return;
     }
 
     setBulkImporting(true);
+    setValidationResult(null); // Clear any previous validation messages
     try {
-      const data = JSON.parse(bulkJson);
-      const questionsArray = Array.isArray(data) ? data : [data];
-
       let successCount = 0;
       let errorCount = 0;
 
       for (const item of questionsArray) {
-        // Validate the JSON structure
-        if (!item.question || !Array.isArray(item.options) || item.options.length < 5) {
-          console.error('Invalid format for item:', item);
-          errorCount++;
-          continue;
-        }
 
         // Find the correct answer (the option before "true")
         let correctAnswerValue = '';
@@ -359,8 +343,7 @@ export default function AdminDashboard() {
               correctAnswer: correctAnswerValue,
               category: 'General',
               difficulty: 'medium',
-              points: 1000,
-              timeLimit: 15,
+              points: parseInt(process.env.NEXT_PUBLIC_QUESTION_POINTS || '100', 10),
             }),
           });
 
@@ -376,20 +359,31 @@ export default function AdminDashboard() {
       }
 
       if (successCount > 0) {
-        alert(
-          `Successfully imported ${successCount} question(s)!${
+        setValidationResult({
+          valid: true,
+          message: `✅ Successfully imported ${successCount} question(s)!${
             errorCount > 0 ? ` ${errorCount} failed.` : ''
-          }`
-        );
+          }`,
+        });
         setBulkJson('');
-        setShowBulkImport(false);
         fetchQuestions();
+        // Clear success message and close form after 2 seconds
+        setTimeout(() => {
+          setValidationResult(null);
+          setShowBulkImport(false);
+        }, 2000);
       } else {
-        alert(`Failed to import questions. Please check the format.`);
+        setValidationResult({
+          valid: false,
+          message: '❌ Failed to import questions. Please check the format.',
+        });
       }
     } catch (error) {
-      console.error('Error parsing JSON:', error);
-      alert('Invalid JSON format. Please check your input.');
+      console.error('Error during import:', error);
+      setValidationResult({
+        valid: false,
+        message: '❌ An error occurred during import.',
+      });
     } finally {
       setBulkImporting(false);
     }
@@ -458,49 +452,64 @@ export default function AdminDashboard() {
       <header className="bg-gray-900 shadow-lg border-b border-gray-800">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-          >
-            Logout
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                setShowQuestionForm(!showQuestionForm);
+                setShowBulkImport(false);
+                setShowGameForm(false);
+                setValidationResult(null);
+              }}
+              className={`px-4 py-2 text-white rounded-lg transition font-medium ${
+                showQuestionForm ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
+              }`}
+            >
+              {showQuestionForm ? 'Cancel' : '+ New Question'}
+            </button>
+            <button
+              onClick={() => {
+                setShowBulkImport(!showBulkImport);
+                setShowQuestionForm(false);
+                setShowGameForm(false);
+                setValidationResult(null);
+                setBulkJson('');
+              }}
+              className={`px-4 py-2 text-white rounded-lg transition font-medium ${
+                showBulkImport ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700'
+              }`}
+            >
+              {showBulkImport ? 'Cancel' : '📥 Bulk Import'}
+            </button>
+            <button
+              onClick={() => {
+                setShowGameForm(!showGameForm);
+                setShowQuestionForm(false);
+                setShowBulkImport(false);
+                setValidationResult(null);
+              }}
+              className={`px-4 py-2 text-white rounded-lg transition font-medium ${
+                showGameForm ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
+              }`}
+            >
+              {showGameForm ? 'Cancel' : '🎮 Create Game'}
+            </button>
+            <button
+              onClick={() => router.push('/admin/reports')}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            >
+              📊 Reports
+            </button>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        {/* Action Buttons */}
-        <div className="flex gap-4 mb-8">
-          <button
-            onClick={() => {
-              setShowQuestionForm(!showQuestionForm);
-              setShowBulkImport(false);
-            }}
-            className={`px-6 py-3 text-white rounded-xl transition font-medium ${
-              showQuestionForm ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
-            }`}
-          >
-            {showQuestionForm ? 'Cancel' : '+ New Question'}
-          </button>
-          <button
-            onClick={() => {
-              setShowBulkImport(!showBulkImport);
-              setShowQuestionForm(false);
-            }}
-            className={`px-6 py-3 text-white rounded-xl transition font-medium ${
-              showBulkImport ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700'
-            }`}
-          >
-            {showBulkImport ? 'Cancel' : '📥 Bulk Import'}
-          </button>
-          <button
-            onClick={() => setShowGameForm(!showGameForm)}
-            className={`px-6 py-3 text-white rounded-xl transition font-medium ${
-              showGameForm ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
-            }`}
-          >
-            {showGameForm ? 'Cancel' : '🎮 Create Game'}
-          </button>
-        </div>
 
         {/* Bulk Import Form */}
         {showBulkImport && (
@@ -561,15 +570,8 @@ export default function AdminDashboard() {
 
               <div className="flex gap-3">
                 <button
-                  onClick={handleValidateJson}
-                  type="button"
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
-                >
-                  🔍 Validate JSON
-                </button>
-                <button
                   onClick={handleBulkImport}
-                  disabled={bulkImporting || (validationResult !== null && !validationResult.valid)}
+                  disabled={bulkImporting}
                   className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {bulkImporting ? (
@@ -709,19 +711,6 @@ export default function AdminDashboard() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Time Limit (seconds)
-                  </label>
-                  <input
-                    type="number"
-                    value={timeLimit}
-                    onChange={(e) => setTimeLimit(Number(e.target.value))}
-                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-white placeholder-gray-500"
-                    min="5"
-                    max="60"
-                  />
-                </div>
               </div>
 
               <div className="flex gap-4">
@@ -806,7 +795,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="max-h-64 overflow-y-auto bg-gray-800 border border-gray-700 rounded-lg p-4 space-y-2">
                   {questions.map((q) => (
-                    <div key={q._id} className="flex items-start gap-3">
+                    <label key={q._id} className="flex items-start gap-3 cursor-pointer hover:bg-gray-700/50 p-2 rounded transition">
                       <input
                         type="checkbox"
                         checked={selectedQuestions.includes(q._id)}
@@ -816,10 +805,10 @@ export default function AdminDashboard() {
                       <div className="flex-1">
                         <p className="text-sm font-medium text-white">{q.questionText}</p>
                         <p className="text-xs text-gray-400">
-                          {q.category} • {q.difficulty} • {q.points} pts • {q.timeLimit}s
+                          {q.category} • {q.difficulty} • {q.points} pts
                         </p>
                       </div>
-                    </div>
+                    </label>
                   ))}
                 </div>
               </div>
@@ -878,7 +867,7 @@ export default function AdminDashboard() {
               </button>
             )}
           </div>
-          <div className="divide-y divide-gray-800">
+          <div className="divide-y divide-gray-800 max-h-[300px] overflow-y-auto">
             {questions.map((q) => (
               <div key={q._id} className="px-6 py-4 hover:bg-gray-800 transition">
                 <div className="flex justify-between items-start">
@@ -906,7 +895,6 @@ export default function AdminDashboard() {
                         {q.difficulty}
                       </span>
                       <span>{q.points} points</span>
-                      <span>{q.timeLimit}s</span>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -957,7 +945,7 @@ export default function AdminDashboard() {
           <div className="px-6 py-4 bg-gray-800 border-b border-gray-800">
             <h2 className="text-xl font-bold text-white">Recent Games ({games.length})</h2>
           </div>
-          <div className="divide-y divide-gray-800">
+          <div className="divide-y divide-gray-800 max-h-[300px] overflow-y-auto">
             {games.map((g) => (
               <div key={g._id} className="px-6 py-4 hover:bg-gray-800 transition">
                 <div className="flex justify-between items-center">

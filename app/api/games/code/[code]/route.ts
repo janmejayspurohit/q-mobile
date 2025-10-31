@@ -22,6 +22,30 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       `✅ API: Game found: ID=${game._id}, code="${game.gameCode}", status="${game.status}", players=${game.players.length}`
     );
 
+    // If game is completed, return game info so client can redirect to results
+    if (game.status === 'completed') {
+      console.log(`🏁 API: Game is completed, returning game info for results redirect`);
+      return NextResponse.json(
+        {
+          game: {
+            _id: game._id,
+            gameCode: game.gameCode,
+            title: game.title,
+            status: game.status,
+            playerCount: game.players.length,
+          },
+          redirect: 'results', // Signal to client to redirect to results
+        },
+        { status: 200 }
+      );
+    }
+
+    // If game is active (in progress), don't allow joining
+    if (game.status === 'active') {
+      console.log(`❌ API: Game is already in progress: "${game.status}"`);
+      return NextResponse.json({ error: 'Game is already in progress' }, { status: 400 });
+    }
+
     if (game.status !== 'waiting') {
       console.log(`❌ API: Game status not waiting: "${game.status}"`);
       return NextResponse.json({ error: 'Game has already started or ended' }, { status: 400 });

@@ -14,6 +14,9 @@ const dev = process.env.NODE_ENV !== 'production';
 const hostname = 'localhost';
 const port = parseInt(process.env.PORT || '3000', 10);
 
+// Get question time limit from environment variable
+const QUESTION_TIME_LIMIT = parseInt(process.env.NEXT_PUBLIC_QUESTION_TIME_LIMIT || '15', 10);
+
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
@@ -63,7 +66,7 @@ app.prepare().then(() => {
 
         if (game.status === 'completed') {
           console.log(`❌ Game has ended: "${game.status}"`);
-          socket.emit('error', { message: 'This game has already ended. Please join a new game.' });
+          socket.emit('game-completed', { gameId: game._id.toString() });
           return;
         }
 
@@ -185,7 +188,7 @@ app.prepare().then(() => {
             _id: question._id,
             questionText: question.questionText,
             options: question.options,
-            timeLimit: question.timeLimit,
+            timeLimit: QUESTION_TIME_LIMIT,
             points: question.points,
           },
           questionNumber: game.currentQuestionIndex + 1,
@@ -194,18 +197,23 @@ app.prepare().then(() => {
 
         activeGames.set(`${gameCode}-questionStart`, Date.now());
 
-        let timeRemaining = question.timeLimit;
+        let timeRemaining = QUESTION_TIME_LIMIT;
         const timerInterval = setInterval(() => {
           timeRemaining--;
           io.to(gameCode).emit('timer-update', { timeRemaining });
 
           if (timeRemaining <= 0) {
             clearInterval(timerInterval);
+            // Remove timer from activeGames
+            activeGames.delete(`${gameCode}-timer`);
             setTimeout(() => {
               moveToNextQuestion(gameCode, gameId);
             }, 3000);
           }
         }, 1000);
+
+        // Store timer interval for cleanup
+        activeGames.set(`${gameCode}-timer`, timerInterval);
 
         console.log(`📝 Question ${game.currentQuestionIndex + 1} sent to ${gameCode}`);
       } catch (error) {
@@ -253,8 +261,8 @@ app.prepare().then(() => {
         let pointsEarned = 0;
         if (isCorrect) {
           const timeToAnswerSeconds = timeToAnswerMs / 1000;
-          const timeBonus = Math.max(0, 1 - timeToAnswerSeconds / question.timeLimit);
-          pointsEarned = Math.round(question.points * (0.5 + 0.5 * timeBonus) * 100) / 100;
+          const timeBonus = Math.max(0, 1 - timeToAnswerSeconds / QUESTION_TIME_LIMIT);
+          pointsEarned = Math.round(question.points * (0.5 + 0.5 * timeBonus));
         }
 
         const updatedGame = await Game.findOneAndUpdate(
@@ -334,7 +342,15 @@ app.prepare().then(() => {
 
     async function endGame(gameCode: string, gameId: string) {
       try {
-        const game = await Game.findById(gameId).populate('players.userId');
+        // Clear any active timer for this game
+        const activeTimer = activeGames.get(`${gameCode}-timer`);
+        if (activeTimer) {
+          clearInterval(activeTimer);
+          activeGames.delete(`${gameCode}-timer`);
+          console.log(`⏹️ Cleared active timer for game ${gameCode}`);
+        }
+
+        const game = await Game.findById(gameId);
 
         if (!game) return;
 
@@ -345,12 +361,16 @@ app.prepare().then(() => {
           const sortedPlayers = [...game.players].sort((a, b) => b.score - a.score);
           game.winner = sortedPlayers[0].userId;
 
-          await User.findByIdAndUpdate(game.winner, {
-            $inc: { totalWins: 1, totalGamesPlayed: 1 },
-          });
+          // Update winner stats
+          if (game.winner) {
+            await User.findByIdAndUpdate(game.winner, {
+              $inc: { totalWins: 1, totalGamesPlayed: 1 },
+            });
+          }
 
+          // Update all other players stats
           for (const player of game.players) {
-            if (player.userId.toString() !== game.winner.toString()) {
+            if (game.winner && player.userId.toString() !== game.winner.toString()) {
               await User.findByIdAndUpdate(player.userId, {
                 $inc: { totalGamesPlayed: 1 },
               });
@@ -365,9 +385,18 @@ app.prepare().then(() => {
           .sort((a, b) => b.score - a.score)
           .map((p, idx) => ({ ...p, rank: idx + 1 }));
 
+        // Emit game ended to players
         io.to(gameCode).emit('game-ended', {
           finalLeaderboard,
           gameId: game._id.toString(),
+        });
+
+        // Emit to admin dashboard AFTER game is saved
+        console.log(`📡 Emitting admin-game-updated: gameId=${game._id}, status=completed`);
+        io.to('admin-room').emit('admin-game-updated', {
+          gameId: game._id.toString(),
+          status: 'completed',
+          endedAt: game.endedAt,
         });
 
         console.log(`🏁 Game ${gameCode} ended. Winner: ${finalLeaderboard[0]?.username}`);

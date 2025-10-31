@@ -37,12 +37,6 @@ const QuestionSchema = new Schema<IQuestion>(
       default: 100,
       min: 0,
     },
-    timeLimit: {
-      type: Number,
-      default: 15,
-      min: 5,
-      max: 60,
-    },
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: 'Admin',

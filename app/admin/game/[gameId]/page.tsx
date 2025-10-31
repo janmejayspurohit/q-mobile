@@ -53,6 +53,25 @@ export default function AdminGameControl() {
     socket.emit('admin-join-game', { gameCode: game.gameCode });
     console.log(`   Emitted admin-join-game with gameCode: "${game.gameCode}"`);
 
+    // Refresh player list after joining to get current state
+    // This ensures we have the latest players even if we missed join events
+    const refreshPlayers = async () => {
+      try {
+        const token = localStorage.getItem('adminToken');
+        const res = await fetch(`/api/games/${gameId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        console.log(`👑 ADMIN: Refreshed player list: ${data.game.players.length} players`);
+        setPlayers(data.game.players || []);
+      } catch (error) {
+        console.error('❌ ADMIN: Error refreshing players:', error);
+      }
+    };
+    
+    // Refresh players shortly after joining the room
+    const refreshTimer = setTimeout(refreshPlayers, 500);
+
     socket.on(
       'player-joined',
       (data: { username: string; totalPlayers: number; players: Player[] }) => {
@@ -63,10 +82,11 @@ export default function AdminGameControl() {
 
     return () => {
       console.log(`👑 ADMIN: Cleaning up - leaving game room "${game.gameCode}"`);
+      clearTimeout(refreshTimer);
       socket.emit('admin-leave-game', { gameCode: game.gameCode });
       socket.off('player-joined');
     };
-  }, [socket, isConnected, game]);
+  }, [socket, isConnected, game, gameId]);
 
   const fetchGame = async () => {
     try {

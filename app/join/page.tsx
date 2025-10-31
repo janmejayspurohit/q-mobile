@@ -16,17 +16,41 @@ export default function JoinPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
+    const fetchUserData = async () => {
+      const token = localStorage.getItem('token');
+      const userData = localStorage.getItem('user');
 
-    if (!token || !userData) {
-      router.push('/');
-      return;
-    }
+      if (!token || !userData) {
+        router.push('/');
+        return;
+      }
 
-    const parsedUser = JSON.parse(userData);
-    setUser(parsedUser);
-    setUsername(parsedUser.username);
+      const parsedUser = JSON.parse(userData);
+      setUsername(parsedUser.username);
+
+      // Fetch fresh user stats from API
+      try {
+        const res = await fetch('/api/users/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.ok) {
+          const freshUser = await res.json();
+          setUser(freshUser);
+          // Update localStorage with fresh data
+          localStorage.setItem('user', JSON.stringify(freshUser));
+        } else {
+          // Fallback to cached data if API fails
+          setUser(parsedUser);
+        }
+      } catch (error) {
+        console.error('Failed to fetch user stats:', error);
+        // Fallback to cached data if API fails
+        setUser(parsedUser);
+      }
+    };
+
+    fetchUserData();
   }, [router]);
 
   const handleJoin = async (e: React.FormEvent) => {
@@ -48,9 +72,18 @@ export default function JoinPage() {
         throw new Error(data.error || 'Failed to join game');
       }
 
-      console.log(`✅ CLIENT: Game found, redirecting to game page...`);
+      console.log(`✅ CLIENT: Game found, checking status...`);
       console.log(`   Game ID: ${data.game._id}`);
       console.log(`   Game Code: ${data.game.gameCode}`);
+      console.log(`   Game Status: ${data.game.status}`);
+
+      // If game is completed, redirect to results page
+      if (data.redirect === 'results' || data.game.status === 'completed') {
+        console.log(`🏁 CLIENT: Game is completed, redirecting to results page...`);
+        router.push(`/results/${data.game._id}`);
+        return;
+      }
+
       console.log(`   Redirect URL: /game/${data.game._id}?code=${gameCode.toUpperCase()}`);
 
       // Redirect to game room

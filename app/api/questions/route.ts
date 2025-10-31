@@ -3,7 +3,6 @@ import connectDB from '@/lib/mongodb';
 import Question from '@/lib/models/Question';
 import { verifyToken } from '@/lib/auth';
 
-// GET all questions
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
@@ -47,7 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { questionText, options, correctAnswer, category, difficulty, points, timeLimit } = body;
+    const { questionText, options, correctAnswer, category, difficulty, points } = body;
 
     if (!questionText || !correctAnswer) {
       return NextResponse.json(
@@ -66,8 +65,7 @@ export async function POST(request: NextRequest) {
       correctAnswer,
       category: category || 'General',
       difficulty: difficulty || 'medium',
-      points: points || 100,
-      timeLimit: timeLimit || 15,
+      points: points || parseInt(process.env.NEXT_PUBLIC_QUESTION_POINTS || '1000', 10),
       createdBy: payload.userId,
     });
 

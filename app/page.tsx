@@ -12,19 +12,27 @@ export default function Home() {
   const [genericPassword, setGenericPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const router = useRouter();
 
   // Redirect to join page if already logged in
   useEffect(() => {
-    const adminToken = localStorage.getItem('adminToken');
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
+    const checkAuth = async () => {
+      const adminToken = localStorage.getItem('adminToken');
+      const token = localStorage.getItem('token');
+      const user = localStorage.getItem('user');
 
-    if (adminToken) {
-      router.push('/admin/dashboard');
-    } else if (token && user) {
-      router.push('/join');
-    }
+      if (adminToken) {
+        router.push('/admin/dashboard');
+      } else if (token && user) {
+        router.push('/join');
+      } else {
+        // Not logged in, show the login form
+        setCheckingAuth(false);
+      }
+    };
+
+    checkAuth();
   }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,6 +69,29 @@ export default function Home() {
       setLoading(false);
     }
   };
+
+  // Show loader while checking authentication
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block relative">
+            <div className="w-24 h-24 border-8 border-purple-200 border-t-purple-600 rounded-full animate-spin"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Image
+                src="/tmo.png"
+                alt="T-Mobile Logo"
+                width={48}
+                height={48}
+                className="rounded-lg"
+              />
+            </div>
+          </div>
+          <p className="text-white text-xl font-semibold mt-6">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 flex items-center justify-center p-4">

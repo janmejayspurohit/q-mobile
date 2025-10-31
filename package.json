@@ -8,15 +8,18 @@
     "start": "NODE_ENV=production tsx server.ts",
     "lint": "eslint",
     "tunnel": "ngrok http 3000 --log=stdout",
-    "db:clear": "tsx scripts/clearDatabase.ts"
+    "db:clear": "tsx scripts/clearDatabase.ts",
+    "db:reset": "tsx scripts/clearDatabase.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
+    "chart.js": "^4.5.1",
     "dotenv": "^17.2.3",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.19.2",
     "next": "16.0.1",
     "react": "19.2.0",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "19.2.0",
     "recharts": "^3.3.0",
     "socket.io": "^4.8.1",
