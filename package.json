@@ -1,5 +1,5 @@
 {
-  "name": "q-mobile",
+  "name": "quizzical",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,7 +7,6 @@
     "build": "next build",
     "start": "NODE_ENV=production tsx server.ts",
     "lint": "eslint",
-    "tunnel": "ngrok http 3000 --log=stdout",
     "db:clear": "tsx scripts/clearDatabase.ts",
     "db:reset": "tsx scripts/clearDatabase.ts"
   },

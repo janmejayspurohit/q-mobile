@@ -79,11 +79,10 @@ export default function Home() {
             <div className="w-24 h-24 border-8 border-purple-200 border-t-purple-600 rounded-full animate-spin"></div>
             <div className="absolute inset-0 flex items-center justify-center">
               <Image
-                src="/tmo.png"
-                alt="T-Mobile Logo"
+                src="/quizzical.png"
+                alt="Quizzical Logo"
                 width={48}
                 height={48}
-                className="rounded-lg"
               />
             </div>
           </div>
@@ -101,11 +100,10 @@ export default function Home() {
           <div className="text-center mb-8">
             <div className="flex items-center justify-center gap-3 mb-2">
               <Image
-                src="/tmo.png"
-                alt="T-Mobile Logo"
+                src="/quizzical.png"
+                alt="Quizzical Logo"
                 width={48}
                 height={48}
-                className="rounded-lg"
               />
               <h1 className="text-4xl font-bold text-white">Diwali Quiz</h1>
             </div>
@@ -116,21 +114,19 @@ export default function Home() {
           <div className="flex gap-2 mb-6 bg-gray-800 rounded-xl p-1">
             <button
               onClick={() => setMode('login')}
-              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
-                mode === 'login'
-                  ? 'bg-purple-600 shadow text-white'
-                  : 'text-gray-400 hover:text-gray-200'
-              }`}
+              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${mode === 'login'
+                ? 'bg-purple-600 shadow text-white'
+                : 'text-gray-400 hover:text-gray-200'
+                }`}
             >
               Login
             </button>
             <button
               onClick={() => setMode('register')}
-              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
-                mode === 'register'
-                  ? 'bg-purple-600 shadow text-white'
-                  : 'text-gray-400 hover:text-gray-200'
-              }`}
+              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${mode === 'register'
+                ? 'bg-purple-600 shadow text-white'
+                : 'text-gray-400 hover:text-gray-200'
+                }`}
             >
               Register
             </button>

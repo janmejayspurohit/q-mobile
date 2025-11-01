@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ['juliann-unwounded-crawlingly.ngrok-free.dev'],
+  allowedDevOrigins: ['quizzical.ghrunilabs.ai'],
   devIndicators: false,
 };
 
